@@ -19,6 +19,92 @@ jobs:
           name: GTalk-Windows
           path: dist/GTalk.exe
 
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libegl1 libxcb-xinerama0 libxkbcommon0 fuse libfuse2
+      - name: Install Python deps
+        run: pip install PyQt6 cryptography pyinstaller
+      - name: Build binary
+        run: pyinstaller --onefile --name gtalk gtalk.py
+      - name: Build .deb package
+        run: |
+          mkdir -p deb/DEBIAN
+          mkdir -p deb/usr/bin
+          mkdir -p deb/usr/share/applications
+          mkdir -p deb/usr/share/icons/hicolor/256x256/apps
+          cp dist/gtalk deb/usr/bin/gtalk
+          chmod +x deb/usr/bin/gtalk
+          cat > deb/DEBIAN/control << 'EOF'
+          Package: gtalk
+          Version: ${{ github.ref_name }}
+          Section: net
+          Priority: optional
+          Architecture: amd64
+          Depends: libgl1, libegl1
+          Maintainer: Gorstak <znantidobrostoje@gmail.com>
+          Description: Encrypted P2P chat with global DHT discovery
+           GTalk finds other users worldwide via BitTorrent DHT.
+           No servers, no accounts, no configuration needed.
+          EOF
+          sed -i 's/^          //' deb/DEBIAN/control
+          cat > deb/usr/share/applications/gtalk.desktop << 'EOF'
+          [Desktop Entry]
+          Name=GTalk
+          Comment=Encrypted P2P Chat
+          Exec=/usr/bin/gtalk
+          Icon=gtalk
+          Terminal=false
+          Type=Application
+          Categories=Network;Chat;
+          EOF
+          sed -i 's/^          //' deb/usr/share/applications/gtalk.desktop
+          dpkg-deb --build deb gtalk-${{ github.ref_name }}-amd64.deb
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp dist/gtalk AppDir/usr/bin/
+          chmod +x AppDir/usr/bin/gtalk
+          cat > AppDir/gtalk.desktop << 'EOF'
+          [Desktop Entry]
+          Name=GTalk
+          Exec=gtalk
+          Icon=gtalk
+          Type=Application
+          Categories=Network;Chat;
+          EOF
+          sed -i 's/^          //' AppDir/gtalk.desktop
+          cp AppDir/gtalk.desktop AppDir/usr/share/applications/
+          # Create simple icon
+          convert -size 256x256 xc:'#8AB4F8' AppDir/usr/share/icons/hicolor/256x256/apps/gtalk.png 2>/dev/null || true
+          ln -sf usr/share/icons/hicolor/256x256/apps/gtalk.png AppDir/gtalk.png 2>/dev/null || true
+          cat > AppDir/AppRun << 'APPRUN'
+          #!/bin/bash
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          exec "${HERE}/usr/bin/gtalk" "$@"
+          APPRUN
+          sed -i 's/^          //' AppDir/AppRun
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool AppDir GTalk-${{ github.ref_name }}-x86_64.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GTalk-Linux
+          path: |
+            gtalk-*-amd64.deb
+            GTalk-*-x86_64.AppImage
+
   build-macos:
     runs-on: macos-latest
     steps:
@@ -28,42 +114,29 @@ jobs:
           python-version: '3.12'
       - run: pip install PyQt6 cryptography pyinstaller
       - run: pyinstaller --onefile --windowed --name GTalk gtalk.py
-      - run: |
-          mkdir -p GTalk.app/Contents/MacOS
-          cp dist/GTalk GTalk.app/Contents/MacOS/
-          hdiutil create -volname GTalk -srcfolder GTalk.app -ov GTalk.dmg
+      - name: Create .dmg
+        run: |
+          mkdir -p dmg_contents
+          cp -r dist/GTalk dmg_contents/
+          hdiutil create -volname GTalk -srcfolder dmg_contents -ov -format UDZO GTalk-${{ github.ref_name }}-macOS.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-macOS
-          path: GTalk.dmg
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-dev libegl1
-      - run: pip install PyQt6 cryptography pyinstaller
-      - run: pyinstaller --onefile --name gtalk gtalk.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: GTalk-Linux
-          path: dist/gtalk
+          path: GTalk-*-macOS.dmg
 
   release:
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
+      - name: List artifacts
+        run: find . -type f | head -20
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             GTalk-Windows/GTalk.exe
-            GTalk-macOS/GTalk.dmg
-            GTalk-Linux/gtalk
+            GTalk-Linux/gtalk-*-amd64.deb
+            GTalk-Linux/GTalk-*-x86_64.AppImage
+            GTalk-macOS/GTalk-*-macOS.dmg
