@@ -1,39 +1,43 @@
 # 💬 GTalk
 
-> **Encrypted P2P Chat** — Cross-platform desktop app with end-to-end encryption, LAN auto-discovery, and Chrome-dark theme.
+> **Global P2P Chat via DHT** — Open the app, it finds other GTalk users worldwide automatically. No servers, no IPs, no configuration.
 
-Built with Python 3.10+ and PyQt6. Runs on Windows, macOS, and Linux.
+Uses BitTorrent DHT (same tech as torrents/magnets) for peer discovery. Built with Python 3.10+ and PyQt6.
+
+---
+
+## How It Works
+
+1. You open GTalk
+2. It joins the global BitTorrent DHT network (millions of nodes)
+3. It announces itself on a GTalk-specific "swarm" (like a magnet link)
+4. Other GTalk users are discovered automatically
+5. You chat — messages go directly between peers (P2P)
+
+**No servers. No accounts. No IP addresses to type. Just open and talk.**
 
 ---
 
 ## Features
 
-- 🔒 **End-to-end encryption** — X25519 key exchange + AES-256-GCM per session
-- 📡 **LAN auto-discovery** — peers on the same network find each other via UDP broadcast
-- 🔄 **Auto-reconnect** — dropped connections re-establish automatically
-- 💬 **Real-time messaging** — framed binary protocol with typing indicators
-- 🖥️ **System tray** — minimize to tray, desktop notifications on new messages
-- 📎 **File sharing** (protocol ready, UI placeholder)
-- 💾 **Chat history** — persisted locally (last 2000 messages)
+- 🌐 **Global DHT discovery** — finds GTalk users worldwide via BitTorrent DHT
+- 💬 **Real-time P2P messaging** — direct connections, no relay server
+- 🖥️ **System tray** — minimize to tray, desktop notifications
+- 💾 **Chat history** — last 2000 messages saved locally
 - 🎨 **Chrome-dark theme** — matching GBrowser/Ceprkac
-- 🌐 **Cross-platform** — Windows, macOS, Linux
-- 🚫 **No accounts, no cloud, no tracking** — everything is direct P2P
+- 🔒 **E2E encryption ready** (with `cryptography` package)
+- 🚫 **Zero configuration** — no sign-up, no accounts, no cloud
 
 ---
 
-## Quick Start
+## Install & Run
 
 ```bash
-pip install PyQt6 cryptography
+pip install PyQt6 libtorrent cryptography
 python gtalk.py
 ```
 
-### Connect to someone
-1. Both users run GTalk
-2. **Same LAN?** → peers appear automatically in "LAN Peers" (double-click to connect)
-3. **Different network?** → share your IP, type it in "Connect" field
-
-### Build standalone
+### Build standalone exe
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --windowed --name GTalk gtalk.py
@@ -41,44 +45,24 @@ pyinstaller --onefile --windowed --name GTalk gtalk.py
 
 ---
 
-## Security
-
-- **Key exchange**: X25519 (Curve25519 ECDH)
-- **Encryption**: AES-256-GCM with random 96-bit nonce per message
-- **No stored keys**: Fresh keypair generated each session
-- **Fallback**: If `cryptography` package is missing, runs unencrypted (shows ⚠️ in UI)
-- Lock icon (🔒) shown next to peers with active encryption
-
----
-
-## Protocol
-
-Binary framed: `[4-byte big-endian length][encrypted JSON payload]`
-
-Message types:
-- `hello` — handshake with username + X25519 public key
-- `message` — chat message with sender, text, timestamp, unique ID
-- `typing` — typing indicator
-- `file_offer` — file transfer request (filename + size)
-- `read_receipt` — message seen acknowledgment
-
----
-
-## Configuration
-
-Settings stored in `~/.gtalk/settings.json`:
-- `username` — display name
-- `port` — listening port (default: 12345)
-- `notifications` — desktop notifications on/off
-- `auto_reconnect` — reconnect to known peers on disconnect
-
----
-
 ## Requirements
 
 - Python 3.10+
-- PyQt6 (GUI)
-- cryptography (E2E encryption — optional but strongly recommended)
+- **PyQt6** — GUI
+- **libtorrent** — DHT peer discovery (the magic that finds peers globally)
+- **cryptography** — E2E encryption (optional but recommended)
+
+---
+
+## How DHT Discovery Works
+
+GTalk uses the same DHT network as BitTorrent clients. On startup:
+1. Bootstraps into DHT via `router.bittorrent.com`, `dht.transmissionbt.com`, etc.
+2. Announces on a fixed info_hash (`SHA1("GTalk-Global-Chat-v2")`)
+3. Periodically searches for other peers announcing the same hash
+4. Connects directly to discovered peers over TCP
+
+This is the same mechanism that allows torrents to work without trackers (magnet links).
 
 ---
 
