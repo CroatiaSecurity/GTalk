@@ -31,6 +31,22 @@ class PeerService extends ChangeNotifier {
   Future<void> start() async {
     _running = true;
 
+    // Add firewall exception on Windows (best-effort, may need admin)
+    if (Platform.isWindows) {
+      try {
+        await Process.run('netsh', [
+          'advfirewall', 'firewall', 'add', 'rule',
+          'name=GTalk', 'dir=in', 'action=allow', 'protocol=UDP',
+          'localport=${chatPort + 1000}',
+        ]);
+        await Process.run('netsh', [
+          'advfirewall', 'firewall', 'add', 'rule',
+          'name=GTalk TCP', 'dir=in', 'action=allow', 'protocol=TCP',
+          'localport=$chatPort',
+        ]);
+      } catch (_) {}
+    }
+
     // Start TCP listener
     _server = await ServerSocket.bind(InternetAddress.anyIPv4, chatPort);
     _server!.listen(_handleIncoming);
