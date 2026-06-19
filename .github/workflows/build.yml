@@ -44,7 +44,7 @@ jobs:
           chmod +x deb/usr/bin/gtalk
           cat > deb/DEBIAN/control << 'EOF'
           Package: gtalk
-          Version: ${{ github.ref_name }}
+          Version: ${GITHUB_REF_NAME#v}
           Section: net
           Priority: optional
           Architecture: amd64
@@ -66,7 +66,7 @@ jobs:
           Categories=Network;Chat;
           EOF
           sed -i 's/^          //' deb/usr/share/applications/gtalk.desktop
-          dpkg-deb --build deb gtalk-${{ github.ref_name }}-amd64.deb
+          dpkg-deb --build deb gtalk-${GITHUB_REF_NAME#v}-amd64.deb
       - name: Build AppImage
         run: |
           mkdir -p AppDir/usr/bin
@@ -97,7 +97,7 @@ jobs:
           chmod +x AppDir/AppRun
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool AppDir GTalk-${{ github.ref_name }}-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool AppDir gtalk-${GITHUB_REF_NAME#v}-x86_64.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-Linux
@@ -118,7 +118,7 @@ jobs:
         run: |
           mkdir -p dmg_contents
           cp -r dist/GTalk dmg_contents/
-          hdiutil create -volname GTalk -srcfolder dmg_contents -ov -format UDZO GTalk-${{ github.ref_name }}-macOS.dmg
+          hdiutil create -volname GTalk -srcfolder dmg_contents -ov -format UDZO gtalk-${GITHUB_REF_NAME#v}-macOS.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-macOS
