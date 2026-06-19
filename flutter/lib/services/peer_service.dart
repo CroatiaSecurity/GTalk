@@ -48,8 +48,12 @@ class PeerService extends ChangeNotifier {
     }
 
     // Start TCP listener
-    _server = await ServerSocket.bind(InternetAddress.anyIPv4, chatPort);
-    _server!.listen(_handleIncoming);
+    try {
+      _server = await ServerSocket.bind(InternetAddress.anyIPv4, chatPort);
+      _server!.listen(_handleIncoming);
+    } catch (e) {
+      debugPrint("Port $chatPort busy (running in outbound-only mode): $e");
+    }
 
     // Start DHT discovery
     _dht = DhtService(port: chatPort, onPeerFound: _onDhtPeerFound);
