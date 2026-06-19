@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 
 /// DHT peer discovery using BitTorrent BEP-5 protocol over UDP.
 /// Uses raw bytes for bencode (not strings) to handle binary node IDs correctly.
@@ -19,12 +20,19 @@ class DhtService {
   final List<_DhtNode> _routingTable = [];
   late final Uint8List _nodeId;
   int _dhtNodes = 0;
+  int _responsesReceived = 0;
 
   static const _bootstrapNodes = [
-    ('dht.transmissionbt.com', 6881),
-    ('router.utorrent.com', 6881),
     ('router.bittorrent.com', 6881),
+    ('router.utorrent.com', 6881),
+    ('dht.transmissionbt.com', 6881),
     ('dht.libtorrent.org', 25401),
+  ];
+
+  // Hardcoded IPs as fallback when DNS fails
+  static const _bootstrapIps = [
+    ('67.215.246.10', 6881),   // router.bittorrent.com
+    ('82.221.103.244', 6881),  // router.utorrent.com
   ];
 
   DhtService({required this.port, required this.onPeerFound}) {
@@ -40,26 +48,67 @@ class DhtService {
       _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, port + 1000);
     } catch (_) {
       // Port in use — try random
-      _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      try {
+        _socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      } catch (e) {
+        debugPrint('DHT: Failed to bind UDP socket: $e');
+        return;
+      }
     }
-    _socket!.listen(_handleDatagram);
 
-    // Bootstrap
-    _bootstrap();
+    debugPrint('DHT: Bound to UDP port ${_socket!.port}');
+
+    // Critical: explicitly enable read events (Dart quirk on Windows)
+    _socket!.readEventsEnabled = true;
+    // Disable write event noise — we don't need write-ready notifications
+    _socket!.writeEventsEnabled = false;
+
+    _socket!.listen(_handleDatagram, onError: (e) {
+      debugPrint('DHT: Socket stream error: $e');
+    });
+
+    // Bootstrap with retries
+    await _bootstrap();
+
+    // Aggressive initial bootstrapping
+    Timer(const Duration(seconds: 2), () {
+      if (!_running) return;
+      if (_dhtNodes == 0) {
+        debugPrint('DHT: No nodes yet after 2s, retrying bootstrap...');
+        _bootstrap();
+        _bootstrapFallbackIps();
+      }
+      _searchPeers();
+    });
+
+    Timer(const Duration(seconds: 5), () {
+      if (!_running) return;
+      if (_dhtNodes == 0) {
+        debugPrint('DHT: Still no nodes after 5s, trying fallback IPs...');
+        _bootstrapFallbackIps();
+      }
+      _searchPeers();
+    });
+
+    Timer(const Duration(seconds: 10), () {
+      if (!_running) return;
+      if (_dhtNodes == 0) {
+        debugPrint('DHT: No nodes after 10s. Responses received: $_responsesReceived');
+        _bootstrap();
+        _bootstrapFallbackIps();
+      }
+      _searchPeers();
+    });
 
     // Periodic operations
-    Timer.periodic(const Duration(seconds: 10), (_) {
+    Timer.periodic(const Duration(seconds: 15), (_) {
       if (!_running) return;
       _searchPeers();
     });
-    Timer.periodic(const Duration(seconds: 60), (_) {
+    Timer.periodic(const Duration(seconds: 90), (_) {
       if (!_running) return;
-      _bootstrap(); // Re-bootstrap periodically
+      _bootstrap();
     });
-
-    // Initial search after bootstrap
-    Future.delayed(const Duration(seconds: 3), _searchPeers);
-    Future.delayed(const Duration(seconds: 8), _searchPeers);
   }
 
   void stop() {
@@ -67,9 +116,23 @@ class DhtService {
     _socket?.close();
   }
 
-  void _bootstrap() {
+  Future<void> _bootstrap() async {
     for (final (host, port) in _bootstrapNodes) {
-      _sendFindNode(host, port, _nodeId);
+      _sendFindNodeByHostname(host, port, _nodeId);
+    }
+  }
+
+  void _bootstrapFallbackIps() {
+    // Direct IP — no DNS needed
+    for (final (ip, port) in _bootstrapIps) {
+      try {
+        final addr = InternetAddress(ip);
+        final msg = _buildFindNode(_randomBytes(2), _nodeId);
+        _socket?.send(msg, addr, port);
+        debugPrint('DHT: Sent find_node to fallback $ip:$port');
+      } catch (e) {
+        debugPrint('DHT: Fallback send error: $e');
+      }
     }
   }
 
@@ -77,78 +140,122 @@ class DhtService {
     // Query routing table nodes for our info_hash
     final nodes = _routingTable.take(8).toList();
     for (final node in nodes) {
-      _sendGetPeers(node.ip, node.port);
+      _sendGetPeersDirect(node.ip, node.port);
     }
     // Also query bootstrap nodes directly
     for (final (host, port) in _bootstrapNodes.take(2)) {
-      _sendGetPeers(host, port);
+      _sendGetPeersByHostname(host, port);
     }
   }
 
-  void _sendFindNode(String host, int port, Uint8List target) {
+  void _sendFindNodeByHostname(String host, int port, Uint8List target) {
     final txId = _randomBytes(2);
     final msg = _buildFindNode(txId, target);
     _sendToHost(host, port, msg);
   }
 
-  void _sendGetPeers(String host, int port) {
+  void _sendGetPeersByHostname(String host, int port) {
     final txId = _randomBytes(2);
     final msg = _buildGetPeers(txId);
     _sendToHost(host, port, msg);
   }
 
+  void _sendGetPeersDirect(String ip, int port) {
+    final txId = _randomBytes(2);
+    final msg = _buildGetPeers(txId);
+    try {
+      final addr = InternetAddress(ip);
+      _socket?.send(msg, addr, port);
+    } catch (_) {}
+  }
+
   void _sendToHost(String host, int port, Uint8List data) {
-    InternetAddress.lookup(host).then((addrs) {
+    InternetAddress.lookup(host, type: InternetAddressType.IPv4).then((addrs) {
       if (addrs.isNotEmpty && _socket != null) {
-        _socket!.send(data, addrs.first, port);
+        final sent = _socket!.send(data, addrs.first, port);
+        if (sent > 0) {
+          debugPrint('DHT: Sent ${data.length}B to $host:$port (${addrs.first.address})');
+        } else {
+          debugPrint('DHT: send() returned $sent for $host:$port');
+        }
+      } else {
+        debugPrint('DHT: No IPv4 address found for $host');
       }
-    }).catchError((_) {});
+    }).catchError((e) {
+      debugPrint('DHT: DNS lookup failed for $host: $e');
+    });
   }
 
   void _handleDatagram(RawSocketEvent event) {
     if (event != RawSocketEvent.read) return;
-    final dg = _socket?.receive();
-    if (dg == null) return;
 
-    try {
-      final decoded = _bdecodeFull(dg.data);
-      if (decoded == null || decoded is! Map) return;
+    // Drain all queued datagrams (multiple may arrive per event on Windows)
+    while (true) {
+      final dg = _socket?.receive();
+      if (dg == null) break;
 
-      final r = decoded['r'];
-      if (r == null || r is! Map) return;
+      _responsesReceived++;
 
-      // Parse compact nodes (26 bytes each: 20 id + 4 ip + 2 port)
-      final nodesData = r['nodes'];
-      if (nodesData != null && nodesData is Uint8List) {
-        for (var i = 0; i + 26 <= nodesData.length; i += 26) {
-          final ip = '${nodesData[i + 20]}.${nodesData[i + 21]}.${nodesData[i + 22]}.${nodesData[i + 23]}';
-          final p = (nodesData[i + 24] << 8) | nodesData[i + 25];
-          if (p > 0 && p < 65536 && ip != '0.0.0.0') {
-            _routingTable.add(_DhtNode(ip, p));
+      try {
+        final decoded = _bdecodeFull(dg.data);
+        if (decoded == null || decoded is! Map) {
+          debugPrint('DHT: Got non-map response from ${dg.address.address}:${dg.port} (${dg.data.length}B)');
+          continue;
+        }
+
+        // Check for error responses
+        final errField = decoded['e'];
+        if (errField != null) {
+          debugPrint('DHT: Error response from ${dg.address.address}: $errField');
+        }
+
+        final r = decoded['r'];
+        if (r == null || r is! Map) {
+          // Not a valid response — might be a query to us (ignore)
+          continue;
+        }
+
+        // Parse compact nodes (26 bytes each: 20 id + 4 ip + 2 port)
+        final nodesData = r['nodes'];
+        if (nodesData != null && nodesData is Uint8List) {
+          int added = 0;
+          for (var i = 0; i + 26 <= nodesData.length; i += 26) {
+            final ip = '${nodesData[i + 20]}.${nodesData[i + 21]}.${nodesData[i + 22]}.${nodesData[i + 23]}';
+            final p = (nodesData[i + 24] << 8) | nodesData[i + 25];
+            if (p > 0 && p < 65536 && ip != '0.0.0.0') {
+              _routingTable.add(_DhtNode(ip, p));
+              added++;
+            }
+          }
+          if (_routingTable.length > 300) {
+            _routingTable.removeRange(0, _routingTable.length - 300);
+          }
+          _dhtNodes = _routingTable.length;
+          if (added > 0) {
+            debugPrint('DHT: Got $added nodes from ${dg.address.address} (total: $_dhtNodes)');
           }
         }
-        if (_routingTable.length > 300) {
-          _routingTable.removeRange(0, _routingTable.length - 300);
-        }
-        _dhtNodes = _routingTable.length;
-      }
 
-      // Parse compact peers (6 bytes each: 4 ip + 2 port)
-      final values = r['values'];
-      if (values != null && values is List) {
-        for (final v in values) {
-          if (v is Uint8List && v.length >= 6) {
-            final ip = '${v[0]}.${v[1]}.${v[2]}.${v[3]}';
-            final p = (v[4] << 8) | v[5];
-            final key = '$ip:$p';
-            if (!_knownPeers.contains(key) && p > 0) {
-              _knownPeers.add(key);
-              onPeerFound(ip, p);
+        // Parse compact peers (6 bytes each: 4 ip + 2 port)
+        final values = r['values'];
+        if (values != null && values is List) {
+          for (final v in values) {
+            if (v is Uint8List && v.length >= 6) {
+              final ip = '${v[0]}.${v[1]}.${v[2]}.${v[3]}';
+              final p = (v[4] << 8) | v[5];
+              final key = '$ip:$p';
+              if (!_knownPeers.contains(key) && p > 0) {
+                _knownPeers.add(key);
+                debugPrint('DHT: Found peer $key');
+                onPeerFound(ip, p);
+              }
             }
           }
         }
+      } catch (e) {
+        debugPrint('DHT: Parse error: $e');
       }
-    } catch (_) {}
+    }
   }
 
   // === BENCODE BUILDER (byte-level, handles binary correctly) ===
@@ -215,7 +322,8 @@ class DhtService {
             : keyResult.value.toString();
         map[key] = valResult.value;
       }
-      return _BResult(map, pos + 1);
+      if (pos < data.length && data[pos] == 0x65) pos++;
+      return _BResult(map, pos);
     }
 
     if (b == 0x6C) { // 'l' - list
@@ -227,7 +335,8 @@ class DhtService {
         list.add(r.value);
         pos = r.end;
       }
-      return _BResult(list, pos + 1);
+      if (pos < data.length && data[pos] == 0x65) pos++;
+      return _BResult(list, pos);
     }
 
     if (b == 0x69) { // 'i' - integer
@@ -258,8 +367,6 @@ class DhtService {
 
   /// Simple SHA1 implementation for the info_hash
   static Uint8List _sha1(List<int> input) {
-    // Use Dart's built-in (available in dart:convert ecosystem)
-    // Minimal SHA1 for just generating our fixed hash
     var h0 = 0x67452301;
     var h1 = 0xEFCDAB89;
     var h2 = 0x98BADCFE;
