@@ -111,8 +111,8 @@ jobs:
       - name: Create DMG
         run: |
           mkdir dmg_contents
-          cp -r build/macos/Build/Products/Release/GTalk.app dmg_contents/
-          hdiutil create -volname "GTalk Flutter" -srcfolder dmg_contents -ov -format UDZO GTalk-macOS-Flutter.dmg
+          cp -r build/macos/Build/Products/Release/gtalk.app dmg_contents/
+          hdiutil create -volname "GTalk" -srcfolder dmg_contents -ov -format UDZO GTalk-macOS-Flutter.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-macOS-Flutter
