@@ -36,15 +36,16 @@ jobs:
         run: pyinstaller --onefile --name gtalk --add-data "GTalk.ico:." gtalk.py
       - name: Build .deb package
         run: |
+          VERSION=${GITHUB_REF_NAME#v}
           mkdir -p deb/DEBIAN
           mkdir -p deb/usr/bin
           mkdir -p deb/usr/share/applications
           mkdir -p deb/usr/share/icons/hicolor/256x256/apps
           cp dist/gtalk deb/usr/bin/gtalk
           chmod +x deb/usr/bin/gtalk
-          cat > deb/DEBIAN/control << 'EOF'
+          cat > deb/DEBIAN/control << EOF
           Package: gtalk
-          Version: ${GITHUB_REF_NAME#v}
+          Version: $VERSION
           Section: net
           Priority: optional
           Architecture: amd64
@@ -66,9 +67,10 @@ jobs:
           Categories=Network;Chat;
           EOF
           sed -i 's/^          //' deb/usr/share/applications/gtalk.desktop
-          dpkg-deb --build deb gtalk-${GITHUB_REF_NAME#v}-amd64.deb
+          dpkg-deb --build deb gtalk-${VERSION}-amd64.deb
       - name: Build AppImage
         run: |
+          VERSION=${GITHUB_REF_NAME#v}
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
@@ -97,13 +99,13 @@ jobs:
           chmod +x AppDir/AppRun
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool AppDir gtalk-${GITHUB_REF_NAME#v}-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool AppDir gtalk-${VERSION}-x86_64.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-Linux
           path: |
             gtalk-*-amd64.deb
-            GTalk-*-x86_64.AppImage
+            gtalk-*-x86_64.AppImage
 
   build-macos:
     runs-on: macos-latest
@@ -113,16 +115,16 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install PyQt6 cryptography pyinstaller
-      - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico;." gtalk.py
+      - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico:." gtalk.py
       - name: Create .dmg
         run: |
           mkdir -p dmg_contents
-          cp -r dist/GTalk dmg_contents/
+          cp dist/GTalk dmg_contents/
           hdiutil create -volname GTalk -srcfolder dmg_contents -ov -format UDZO gtalk-${GITHUB_REF_NAME#v}-macOS.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-macOS
-          path: GTalk-*-macOS.dmg
+          path: gtalk-*-macOS.dmg
 
   release:
     needs: [build-windows, build-linux, build-macos]
@@ -138,5 +140,5 @@ jobs:
           files: |
             GTalk-Windows/GTalk.exe
             GTalk-Linux/gtalk-*-amd64.deb
-            GTalk-Linux/GTalk-*-x86_64.AppImage
-            GTalk-macOS/GTalk-*-macOS.dmg
+            GTalk-Linux/gtalk-*-x86_64.AppImage
+            GTalk-macOS/gtalk-*-macOS.dmg
