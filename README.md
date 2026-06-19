@@ -73,6 +73,17 @@ pyinstaller --onefile --windowed --name GTalk gtalk.py
 
 ---
 
+## Version History
+
+### v0.1.0
+- **Versioning Reset:** Reset the codebase versioning starting at `v0.1.0`.
+- **Libtorrent 2.0+ Support:** Updated the DHT discovery code to support modern `libtorrent` Python bindings using dictionary-based `session_params` configuration.
+- **Single-Instance Lock:** Implemented a `QLocalServer`/`QLocalSocket` single-instance check to prevent multiple invisible processes from running. Launching a new instance will now automatically restore and activate the existing window.
+- **Window & Tray Actions:** Enhanced system tray activation behavior for single-clicks and double-clicks to reliably restore and bring the main window to the front.
+- **CI Build Integration:** Added `libtorrent` dependencies to GitHub workflows to ensure the compiled standalone binaries package the DHT discovery engine for all platforms.
+
+---
+
 ## License & Disclaimer
 
 This project is provided "AS IS", without warranties of any kind.
