@@ -114,7 +114,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install PyQt6 cryptography pyinstaller
+      - run: pip install PyQt6 cryptography pyinstaller Pillow
       - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico:." gtalk.py
       - name: Create .dmg
         run: |
