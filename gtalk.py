@@ -40,7 +40,7 @@ try:
 except ImportError:
     HAS_CRYPTO = False
 
-APP_VERSION = "2.2.0"
+APP_VERSION = "0.1.0"
 APP_NAME = "GTalk"
 CHAT_PORT = 31337
 GTALK_SWARM_HASH = hashlib.sha1(b"GTalk-Global-Chat-v2").digest()
@@ -114,11 +114,13 @@ class DhtDiscovery:
     def start(self):
         if not HAS_LT: return
         self._running = True
-        settings = lt.settings_pack()
-        settings.set_int(lt.settings_pack.alert_mask, lt.alert.category_t.dht_notification)
-        settings.set_str(lt.settings_pack.listen_interfaces, f"0.0.0.0:{self._port + 1000}")
-        settings.set_bool(lt.settings_pack.enable_dht, True)
-        self._session = lt.session(settings)
+        params = lt.session_params()
+        params.settings = {
+            'alert_mask': int(lt.alert_category.dht),
+            'listen_interfaces': f"0.0.0.0:{self._port + 1000}",
+            'enable_dht': True
+        }
+        self._session = lt.session(params)
         self._session.add_dht_router("router.bittorrent.com", 6881)
         self._session.add_dht_router("dht.transmissionbt.com", 6881)
         self._session.add_dht_router("router.utorrent.com", 6881)
@@ -129,7 +131,7 @@ class DhtDiscovery:
         time.sleep(5)
         while self._running and self._session:
             try:
-                self._session.dht_announce(lt.sha1_hash(GTALK_SWARM_HASH), self._port, lt.announce_flags_t.seed)
+                self._session.dht_announce(lt.sha1_hash(GTALK_SWARM_HASH), self._port, 1)
             except: pass
             time.sleep(30)
 
@@ -373,12 +375,12 @@ class GTalkWindow(QMainWindow):
         self.swarm.user_offline.connect(self._on_user_offline)
         self.swarm.status_changed.connect(self._on_status)
         self.swarm.dht_nodes_changed.connect(self._on_dht)
-        self.swarm.start()
 
         self._build_ui()
         self._build_tray()
         self._apply_theme()
         self._render_chat()
+        self.swarm.start()
 
     def _build_ui(self):
         central = QWidget()
@@ -477,6 +479,12 @@ class GTalkWindow(QMainWindow):
 
         main.addWidget(center)
 
+    def show_window(self):
+        self.show()
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
     def _build_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable(): return
         self.tray = QSystemTrayIcon(self)
@@ -487,11 +495,15 @@ class GTalkWindow(QMainWindow):
             pix = QPixmap(32, 32); pix.fill(QColor(Theme.Accent))
             self.tray.setIcon(QIcon(pix))
         menu = QMenu()
-        menu.addAction(QAction("Show", self, triggered=self.show))
+        menu.addAction(QAction("Show", self, triggered=self.show_window))
         menu.addAction(QAction("Quit", self, triggered=self._quit))
         self.tray.setContextMenu(menu)
-        self.tray.activated.connect(lambda r: self.show() if r == QSystemTrayIcon.ActivationReason.Trigger else None)
+        self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
+
+    def _on_tray_activated(self, reason):
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            self.show_window()
 
     def _apply_theme(self):
         self.setStyleSheet(f"""
@@ -623,6 +635,8 @@ class GTalkWindow(QMainWindow):
 
     def _quit(self):
         self.swarm.stop()
+        if hasattr(self, 'local_server') and self.local_server:
+            self.local_server.close()
         QApplication.quit()
 
     def closeEvent(self, event):
@@ -637,8 +651,38 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setQuitOnLastWindowClosed(False)
+
+    from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+    
+    server_name = "GTalk-SingleInstance-Lock"
+    local_socket = QLocalSocket()
+    local_socket.connectToServer(server_name)
+    if local_socket.waitForConnected(500):
+        local_socket.write(b"show")
+        local_socket.waitForBytesWritten(500)
+        local_socket.disconnectFromServer()
+        sys.exit(0)
+    
+    local_server = QLocalServer()
+    local_server.removeServer(server_name)
+    if not local_server.listen(server_name):
+        print(f"Warning: Could not start local server: {local_server.errorString()}")
+        
     w = GTalkWindow()
-    w.show()
+    w.local_server = local_server
+    w.show_window()
+
+    def handle_new_connection():
+        client_socket = local_server.nextPendingConnection()
+        if client_socket:
+            if client_socket.waitForReadyRead(500):
+                data = client_socket.readAll().data()
+                if b"show" in data:
+                    w.show_window()
+            client_socket.disconnectFromServer()
+
+    local_server.newConnection.connect(handle_new_connection)
+
     if not HAS_LT:
         QMessageBox.warning(w, "GTalk",
             "libtorrent not found!\n\nInstall: pip install libtorrent\n\n"

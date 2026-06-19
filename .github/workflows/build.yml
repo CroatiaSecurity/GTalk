@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install PyQt6 cryptography pyinstaller
+      - run: pip install PyQt6 cryptography pyinstaller libtorrent
       - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico;." gtalk.py
       - uses: actions/upload-artifact@v4
         with:
@@ -31,7 +31,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev libegl1 libxcb-xinerama0 libxkbcommon0 fuse libfuse2
       - name: Install Python deps
-        run: pip install PyQt6 cryptography pyinstaller
+        run: pip install PyQt6 cryptography pyinstaller libtorrent
       - name: Build binary
         run: pyinstaller --onefile --name gtalk --add-data "GTalk.ico:." gtalk.py
       - name: Build .deb package
@@ -114,7 +114,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install PyQt6 cryptography pyinstaller Pillow
+      - run: pip install PyQt6 cryptography pyinstaller Pillow libtorrent
       - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico:." gtalk.py
       - name: Create .dmg
         run: |

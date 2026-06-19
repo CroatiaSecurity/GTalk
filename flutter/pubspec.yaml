@@ -1,6 +1,6 @@
 name: gtalk
 description: Global P2P Messenger — finds users worldwide via DHT, no servers needed.
-version: 2.2.0+1
+version: 0.1.0+1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
