@@ -59,6 +59,12 @@ class PeerService extends ChangeNotifier {
     _dht = DhtService(port: chatPort, onPeerFound: _onDhtPeerFound);
     await _dht.start();
 
+    // Periodically notify UI of DHT node count changes
+    Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!_running) return;
+      notifyListeners();
+    });
+
     notifyListeners();
   }
 
