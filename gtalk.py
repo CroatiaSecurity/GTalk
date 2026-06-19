@@ -5,6 +5,11 @@
 # Python 3.10+ / PyQt6 / libtorrent (DHT)
 import sys
 import os
+
+# PyInstaller --onefile extracts to a temp dir. Qt needs to find its plugins there.
+if getattr(sys, 'frozen', False):
+    os.environ['QT_PLUGIN_PATH'] = os.path.join(sys._MEIPASS, 'PyQt6', 'Qt6', 'plugins')
+
 import json
 import socket
 import struct
