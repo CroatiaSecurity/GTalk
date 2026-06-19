@@ -2,7 +2,7 @@
 
 > **Global P2P Messenger** — Finds users worldwide via BitTorrent DHT. No servers, no accounts. Open and chat.
 
-Available as both a **Python desktop app** and a **Flutter app** (Android, iOS, Windows, macOS, Linux).
+Available as a **Flutter app** (Android, iOS, Windows, macOS, Linux) with a lightweight **Python script** option for desktop developers.
 
 ---
 
@@ -22,11 +22,11 @@ Available as both a **Python desktop app** and a **Flutter app** (Android, iOS, 
 
 | Platform | Technology | Status |
 |----------|-----------|--------|
-| Android | Flutter | ✅ |
-| iOS | Flutter | ✅ |
-| Windows | Flutter + Python | ✅ |
-| macOS | Flutter + Python | ✅ |
-| Linux | Flutter + Python (.deb, AppImage) | ✅ |
+| Android | Flutter (Official) | ✅ |
+| iOS | Flutter (Official) | ✅ |
+| Windows | Flutter (Official) / Python (Dev Script) | ✅ |
+| macOS | Flutter (Official) / Python (Dev Script) | ✅ |
+| Linux | Flutter (Official) / Python (Dev Script) | ✅ |
 
 ---
 
@@ -39,23 +39,20 @@ flutter pub get
 flutter run
 ```
 
-### Desktop (Python — lightweight alternative)
+### Desktop (Python — lightweight dev script)
 ```bash
 pip install PyQt6 libtorrent cryptography
 python gtalk.py
 ```
 
 ### Build standalone
+
 ```bash
 # Flutter (all platforms)
 cd flutter && flutter build apk     # Android
 cd flutter && flutter build ios     # iOS
 cd flutter && flutter build windows # Windows
 cd flutter && flutter build linux   # Linux
-
-# Python (desktop only)
-pip install pyinstaller
-pyinstaller --onefile --windowed --name GTalk gtalk.py
 ```
 
 ---
