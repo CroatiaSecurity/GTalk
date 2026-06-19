@@ -9,6 +9,8 @@ SolidCompression=yes
 OutputDir=build
 OutputBaseFilename=GTalk-Flutter-Setup
 SetupIconFile=assets\GTalk.ico
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
 
 [Files]
 Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
