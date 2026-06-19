@@ -1,68 +1,75 @@
 # 💬 GTalk
 
-> **Global P2P Chat via DHT** — Open the app, it finds other GTalk users worldwide automatically. No servers, no IPs, no configuration.
+> **Global P2P Messenger** — Finds users worldwide via BitTorrent DHT. No servers, no accounts. Open and chat.
 
-Uses BitTorrent DHT (same tech as torrents/magnets) for peer discovery. Built with Python 3.10+ and PyQt6.
+Available as both a **Python desktop app** and a **Flutter app** (Android, iOS, Windows, macOS, Linux).
 
 ---
 
 ## How It Works
 
-1. You open GTalk
-2. It joins the global BitTorrent DHT network (millions of nodes)
-3. It announces itself on a GTalk-specific "swarm" (like a magnet link)
-4. Other GTalk users are discovered automatically
-5. You chat — messages go directly between peers (P2P)
+1. Open GTalk on any device
+2. App joins the global BitTorrent DHT network
+3. Discovers other GTalk users automatically (same as torrent magnet links)
+4. Users appear in your contact list — tap to DM or chat in Global Room
+5. Share links, music, videos — URLs are clickable
 
-**No servers. No accounts. No IP addresses to type. Just open and talk.**
-
----
-
-## Features
-
-- 🌐 **Global DHT discovery** — finds GTalk users worldwide via BitTorrent DHT
-- 💬 **Real-time P2P messaging** — direct connections, no relay server
-- 🖥️ **System tray** — minimize to tray, desktop notifications
-- 💾 **Chat history** — last 2000 messages saved locally
-- 🎨 **Chrome-dark theme** — matching GBrowser/Ceprkac
-- 🔒 **E2E encryption ready** (with `cryptography` package)
-- 🚫 **Zero configuration** — no sign-up, no accounts, no cloud
+**No servers. No sign-up. No IP addresses. Just open and talk.**
 
 ---
 
-## Install & Run
+## Platforms
 
+| Platform | Technology | Status |
+|----------|-----------|--------|
+| Android | Flutter | ✅ |
+| iOS | Flutter | ✅ |
+| Windows | Flutter + Python | ✅ |
+| macOS | Flutter + Python | ✅ |
+| Linux | Flutter + Python (.deb, AppImage) | ✅ |
+
+---
+
+## Install
+
+### Mobile (Flutter)
+```bash
+cd flutter
+flutter pub get
+flutter run
+```
+
+### Desktop (Python — lightweight alternative)
 ```bash
 pip install PyQt6 libtorrent cryptography
 python gtalk.py
 ```
 
-### Build standalone exe
+### Build standalone
 ```bash
+# Flutter (all platforms)
+cd flutter && flutter build apk     # Android
+cd flutter && flutter build ios     # iOS
+cd flutter && flutter build windows # Windows
+cd flutter && flutter build linux   # Linux
+
+# Python (desktop only)
 pip install pyinstaller
 pyinstaller --onefile --windowed --name GTalk gtalk.py
 ```
 
 ---
 
-## Requirements
+## Features
 
-- Python 3.10+
-- **PyQt6** — GUI
-- **libtorrent** — DHT peer discovery (the magic that finds peers globally)
-- **cryptography** — E2E encryption (optional but recommended)
-
----
-
-## How DHT Discovery Works
-
-GTalk uses the same DHT network as BitTorrent clients. On startup:
-1. Bootstraps into DHT via `router.bittorrent.com`, `dht.transmissionbt.com`, etc.
-2. Announces on a fixed info_hash (`SHA1("GTalk-Global-Chat-v2")`)
-3. Periodically searches for other peers announcing the same hash
-4. Connects directly to discovered peers over TCP
-
-This is the same mechanism that allows torrents to work without trackers (magnet links).
+- 🌐 Global DHT peer discovery (BitTorrent protocol)
+- 💬 1:1 DMs + Global chat room
+- 🔗 Clickable links (Spotify, YouTube, anything)
+- 🔒 E2E encryption (X25519 + AES-GCM)
+- 📱 Works on phones AND desktops
+- 🔔 Notifications when minimized
+- 💾 Local chat history
+- 🎨 Chrome-dark theme
 
 ---
 
