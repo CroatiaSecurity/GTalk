@@ -55,6 +55,11 @@ jobs:
           flutter-version: '3.44.2'
       - run: flutter pub get
       - run: flutter build windows --release
+      - name: Bundle VC++ Runtime
+        run: |
+          copy "C:\Windows\System32\msvcp140.dll" "build\windows\x64\runner\Release\"
+          copy "C:\Windows\System32\vcruntime140.dll" "build\windows\x64\runner\Release\"
+          copy "C:\Windows\System32\vcruntime140_1.dll" "build\windows\x64\runner\Release\"
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-Windows-Flutter
