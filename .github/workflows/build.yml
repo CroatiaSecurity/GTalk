@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install PyQt6 cryptography pyinstaller
-      - run: pyinstaller --onefile --windowed --name GTalk gtalk.py
+      - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico;." gtalk.py
       - uses: actions/upload-artifact@v4
         with:
           name: GTalk-Windows
@@ -33,7 +33,7 @@ jobs:
       - name: Install Python deps
         run: pip install PyQt6 cryptography pyinstaller
       - name: Build binary
-        run: pyinstaller --onefile --name gtalk gtalk.py
+        run: pyinstaller --onefile --name gtalk --add-data "GTalk.ico:." gtalk.py
       - name: Build .deb package
         run: |
           mkdir -p deb/DEBIAN
@@ -113,7 +113,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install PyQt6 cryptography pyinstaller
-      - run: pyinstaller --onefile --windowed --name GTalk gtalk.py
+      - run: pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico;." gtalk.py
       - name: Create .dmg
         run: |
           mkdir -p dmg_contents

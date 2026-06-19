@@ -16,7 +16,7 @@ pip install PyQt6 cryptography pyinstaller --quiet
 
 :: Build
 echo Building GTalk.exe...
-pyinstaller --onefile --windowed --name GTalk --clean gtalk.py
+pyinstaller --onefile --windowed --name GTalk --icon=GTalk.ico --add-data "GTalk.ico;." --clean gtalk.py
 
 echo.
 echo === Build complete: dist\GTalk.exe ===

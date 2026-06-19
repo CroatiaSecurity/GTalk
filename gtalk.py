@@ -353,8 +353,13 @@ class GTalkWindow(QMainWindow):
         self.setWindowTitle("GTalk")
         self.setMinimumSize(800, 520)
         self.resize(1000, 620)
-        pix = QPixmap(64, 64); pix.fill(QColor(Theme.Accent))
-        self.setWindowIcon(QIcon(pix))
+        # Window icon from file
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'GTalk.ico')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        else:
+            pix = QPixmap(64, 64); pix.fill(QColor(Theme.Accent))
+            self.setWindowIcon(QIcon(pix))
 
         self.swarm = SwarmEngine()
         self.swarm.configure(self.settings['username'])
@@ -470,8 +475,12 @@ class GTalkWindow(QMainWindow):
     def _build_tray(self):
         if not QSystemTrayIcon.isSystemTrayAvailable(): return
         self.tray = QSystemTrayIcon(self)
-        pix = QPixmap(32, 32); pix.fill(QColor(Theme.Accent))
-        self.tray.setIcon(QIcon(pix))
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'GTalk.ico')
+        if os.path.exists(icon_path):
+            self.tray.setIcon(QIcon(icon_path))
+        else:
+            pix = QPixmap(32, 32); pix.fill(QColor(Theme.Accent))
+            self.tray.setIcon(QIcon(pix))
         menu = QMenu()
         menu.addAction(QAction("Show", self, triggered=self.show))
         menu.addAction(QAction("Quit", self, triggered=self._quit))
