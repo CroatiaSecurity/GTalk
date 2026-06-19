@@ -2,7 +2,7 @@
 
 > **Global P2P Messenger** — Finds users worldwide via BitTorrent DHT. No servers, no accounts. Open and chat.
 
-Available as a **Flutter app** (Android, iOS, Windows, macOS, Linux) with a lightweight **Python script** option for desktop developers.
+Available as a **Flutter app** (Android, iOS, Windows, macOS, Linux).
 
 ---
 
@@ -22,27 +22,20 @@ Available as a **Flutter app** (Android, iOS, Windows, macOS, Linux) with a ligh
 
 | Platform | Technology | Status |
 |----------|-----------|--------|
-| Android | Flutter (Official) | ✅ |
-| iOS | Flutter (Official) | ✅ |
-| Windows | Flutter (Official) / Python (Dev Script) | ✅ |
-| macOS | Flutter (Official) / Python (Dev Script) | ✅ |
-| Linux | Flutter (Official) / Python (Dev Script) | ✅ |
+| Android | Flutter | ✅ |
+| iOS | Flutter | ✅ |
+| Windows | Flutter | ✅ |
+| macOS | Flutter | ✅ |
+| Linux | Flutter | ✅ |
 
 ---
 
 ## Install
 
-### Mobile (Flutter)
 ```bash
 cd flutter
 flutter pub get
 flutter run
-```
-
-### Desktop (Python — lightweight dev script)
-```bash
-pip install PyQt6 libtorrent cryptography
-python gtalk.py
 ```
 
 ### Build standalone
